@@ -1,0 +1,35 @@
+# --- Python & Flask Backend ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+*.sqlite3
+
+# --- Node.js & React Frontend ---
+/frontend/node_modules/
+/frontend/dist/
+/frontend/dist-ssr/
+.npm
+.eslintcache
+
+# --- IDEs & Editor Configurations ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# --- Arduino / PlatformIO ESP32 Build Artifacts ---
+build/
+core/
+*.bin
+*.elf
+*.hex
+*.map
+.pio/
