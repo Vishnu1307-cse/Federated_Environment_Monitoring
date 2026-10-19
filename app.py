@@ -2,12 +2,14 @@
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from flask_socketio import SocketIO
 from datetime import datetime
 import threading
 import time
+import cv2
+import numpy as np
 import database 
 
 app = Flask(__name__)
@@ -18,6 +20,9 @@ active_nodes = {}
 packet_history = []  # Stores every incoming packet dynamically
 alert_logs = []      # Stores alerts triggered by nodes
 fedavg_rounds_history = [] # Stores how each FedAvg round affected global model states
+
+# Global storage for the latest camera frame
+latest_frame = None
 
 TIMEOUT_SECONDS = 5 
 start_time = time.time()
@@ -96,6 +101,32 @@ def receive_sensor_data():
     socketio.emit('sensor_update', packet_record)
     return jsonify({"status": "success"}), 200
 
+# --- Live Camera Streaming Endpoints ---
+@app.route('/api/camera/stream', methods=['POST'])
+def receive_camera_frame():
+    global latest_frame
+    file = request.files.get('image')
+    if file:
+        np_arr = np.frombuffer(file.read(), np.uint8)
+        latest_frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        return "Frame received", 200
+    return "No image provided", 400
+
+def generate_mjpeg():
+    global latest_frame
+    while True:
+        if latest_frame is not None:
+            success, encoded_image = cv2.imencode('.jpg', latest_frame)
+            if success:
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + encoded_image.tobytes() + b'\r\n')
+        time.sleep(0.1) # ~10 fps stream rate
+
+@app.route('/video_feed')
+def video_feed():
+    return Response(generate_mjpeg(), mimetype='multipart/x-mixed-replace; boundary=frame')
+# --------------------------------------
+
 @app.route('/api/nodes', methods=['GET'])
 def get_nodes():
     return jsonify([{
@@ -136,6 +167,10 @@ def get_alerts():
 @app.route('/api/history/fedavg', methods=['GET'])
 def get_fedavg_history():
     return jsonify(fedavg_rounds_history), 200
+
+@app.route('/api/model/latest', methods=['GET'])
+def get_latest_model():
+    return jsonify(global_model_state), 200
 
 @app.route('/api/fedavg/aggregate', methods=['POST'])
 def execute_fedavg():

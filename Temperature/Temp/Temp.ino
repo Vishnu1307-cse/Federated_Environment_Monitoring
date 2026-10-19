@@ -7,6 +7,12 @@
 float localWeights[3] = {0.12, 0.45, 0.78}; 
 int globalModelVersion = 0;
 
+// --- Inference Structure (Defined BEFORE functions) ---
+struct InferenceResult {
+  String prediction;
+  float confidence;
+};
+
 // --- TensorFlow Lite Micro Integration ---
 #if __has_include(<TensorFlowLite_ESP32.h>) || __has_include(<TensorFlowLite.h>)
   #define HAS_TFLITE_MICRO 1
@@ -32,12 +38,12 @@ const char* password = "Vishnu@bro13";
 const char* serverUrl = "http://10.127.95.163:5000/api/sensor";
 const char* modelCheckUrl = "http://10.127.95.163:5000/api/model/latest";
 
-#define DHTPIN 4     // Digital pin connected to the DHT22 sensor[cite: 5]
+#define DHTPIN 4     // Digital pin connected to the DHT22 sensor
 #define DHTTYPE DHT22 
 DHT dht(DHTPIN, DHTTYPE);
 
 unsigned long previousMillis = 0;
-const long interval = 5000; // Send data every 5 seconds[cite: 5]
+const long interval = 5000; // Send data every 5 seconds
 
 #if HAS_TFLITE_MICRO
 namespace {
@@ -86,11 +92,6 @@ void checkWiFiConnection() {
     while (WiFi.status() != WL_CONNECTED) delay(500);
   }
 }
-
-struct InferenceResult {
-  String prediction;
-  float confidence;
-};
 
 InferenceResult runInference(float temperature) {
   InferenceResult result;
@@ -152,7 +153,8 @@ void loop() {
     doc["prediction"] = inf.prediction;
     doc["confidence"] = inf.confidence;
 
-    JsonArray weightsArray = doc.create_nested_array("weights");
+    // Fixed for ArduinoJson v7 array syntax
+    JsonArray weightsArray = doc["weights"].to<JsonArray>();
     weightsArray.add(localWeights[0]);
     weightsArray.add(localWeights[1]);
     weightsArray.add(localWeights[2]);
